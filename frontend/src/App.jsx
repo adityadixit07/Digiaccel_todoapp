@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Onboarding from "./components/OnBoarding";
+import Onboarding from "./components/Onboarding";
 import TodoPage from "./components/TodoPage";
 
 const App = () => {

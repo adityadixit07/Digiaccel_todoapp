@@ -3,6 +3,7 @@ const TaskController = require("../controllers/TaskController");
 const e = require("express");
 const todoRoutes = express.Router();
 
+todoRoutes.get("/all", TaskController.getAllTasks);
 todoRoutes.post("/create", TaskController.createTask);
 todoRoutes.put("/edit/:id", TaskController.editTask);
 todoRoutes.delete("/delete/:id", TaskController.deleteTask);

@@ -14,19 +14,38 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  allTasksList,
+  createTask,
+  deleteTask,
+  updateTaskStatus,
+} from "../store/slices/taskSlice";
+import { toast } from "react-toastify";
 
 const TodoPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredTasks, setFilteredTasks] = useState([]);
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Finishing Wireframe", status: "pending" },
-    { id: 2, title: "Meeting with team", status: "pending" },
-    { id: 3, title: "Buy cat food", status: "complete" },
-    { id: 4, title: "Finishing daily commission", status: "complete" },
-  ]);
+  const [priorityId, setPriorityId] = useState(null);
 
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [taskDate, setTaskDate] = useState("");
+  const [priority, setPriority] = useState("Low");
+  const [tasks, setTasks] = useState([]);
+
+  const taskList = useSelector((state) => state?.task?.tasks);
+
+  const [allTasks, setAllTasks] = useState([]);
+  useEffect(() => {
+    dispatch(allTasksList());
+  }, []);
+
+  const dispatch = useDispatch();
   // Filter tasks based on search query
   useEffect(() => {
     const filtered = tasks.filter((task) =>
@@ -34,46 +53,54 @@ const TodoPage = () => {
     );
     setFilteredTasks(filtered);
   }, [searchQuery, tasks]);
-  const [newTask, setNewTask] = useState({
-    title: "",
-    startTime: "",
-    endTime: "",
-    date: "",
-    description: "",
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleTaskStatusChange = (id) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              status: task.status === "complete" ? "pending" : "complete",
-            }
-          : task
-      )
-    );
+  const handleTaskStatusChange = async (id, status) => {
+    setIsLoading(true);
+    console.log(id, status, "idand stuad");
+    try {
+      await dispatch(
+        updateTaskStatus({
+          id,
+          status,
+        })
+      ).unwrap();
+
+      // Optional: Show success notification
+      toast.success("Task status updated successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to update task status");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTaskDelete = (id) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+    // setTasks(tasks.filter((task) => task.id !== id));
+    dispatch(deleteTask(id));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newTaskItem = {
-      id: tasks.length + 1,
-      ...newTask,
-      status: "pending",
+    const taskData = {
+      title,
+      description,
+      dateTime: {
+        startTime,
+        endTime,
+      },
+      priority,
     };
-    setTasks([...tasks, newTaskItem]);
+    await dispatch(createTask(taskData)).unwrap();
     setIsModalOpen(false);
-    setNewTask({
+    // Optional: Reset form
+    setFormData({
       title: "",
+      description: "",
       startTime: "",
       endTime: "",
-      date: "",
-      description: "",
+      priority: priority,
     });
   };
 
@@ -113,7 +140,7 @@ const TodoPage = () => {
           {searchQuery ? (
             filteredTasks.length > 0 ? (
               <div className="space-y-2">
-                {filteredTasks.map((task) => (
+                {filteredTasks?.map((task) => (
                   <div
                     key={task.id}
                     className="flex items-center p-4 bg-white rounded-lg border shadow-sm"
@@ -248,43 +275,158 @@ const TodoPage = () => {
           </div>
         </div>
 
-        {/* Tasks List */}
         <div className="mb-6">
+          {/* Header section */}
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-semibold text-lg">Today's Tasks</h2>
-            <button className="text-blue-500 text-sm">View All</button>
+            <button className="text-blue-500 text-sm font-medium">
+              View All
+            </button>
           </div>
+
+          {/* Tasks list */}
           <div className="space-y-3">
-            {tasks.map((task) => (
+            {taskList?.map((task) => (
               <div
-                key={task.id}
-                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"
+                key={task?._id}
+                className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition duration-200"
               >
                 <div className="flex items-center justify-between">
+                  {/* Task title and status */}
                   <div className="flex items-center flex-1">
                     <input
                       type="checkbox"
-                      checked={task.status === "complete"}
-                      onChange={() => handleTaskStatusChange(task.id)}
-                      className="form-checkbox h-5 w-5 text-blue-500 rounded-lg"
+                      checked={task?.status === "complete"}
+                      onChange={() => handleTaskStatusChange(task?._id)}
+                      className="form-checkbox h-5 w-5 text-blue-500 rounded-lg cursor-pointer"
                     />
                     <span
-                      className={`ml-3 ${
-                        task.status === "complete"
+                      className={`ml-3 font-medium ${
+                        task?.status === "complete"
                           ? "line-through text-gray-400"
-                          : "text-gray-700"
+                          : "text-gray-800"
                       }`}
                     >
-                      {task.title}
+                      {task?.title}
                     </span>
+                    <span
+                      onClick={() =>
+                        !isLoading &&
+                        handleTaskStatusChange(
+                          task?._id,
+                          task?.status === "Completed"
+                            ? "In Progress"
+                            : "Completed"
+                        )
+                      }
+                      className={`ml-3 px-3 py-1 text-sm rounded-full 
+      ${
+        isLoading
+          ? "opacity-50 cursor-not-allowed"
+          : "cursor-pointer hover:opacity-80"
+      } 
+      transition-opacity ${
+        task?.status === "Completed"
+          ? "bg-green-100 text-green-600"
+          : "bg-yellow-100 text-yellow-600"
+      }`}
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center">
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Updating...
+                        </span>
+                      ) : (
+                        task?.status || "In Progress"
+                      )}
+                    </span>
+                    <span className="ml-2 ">{task?.description}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button onClick={() => handleTaskDelete(task.id)}>
+
+                  {/* Task actions */}
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => handleTaskDelete(task?._id)}
+                      className="p-2 rounded-lg hover:bg-red-50 transition duration-200"
+                    >
                       <Trash2 className="h-5 w-5 text-red-500" />
                     </button>
-                    <button>
-                      <Pencil className="h-5 w-5 text-gray-400" />
+                    <button className="p-2 rounded-lg hover:bg-gray-50 transition duration-200">
+                      <Pencil className="h-5 w-5 text-gray-500 hover:text-gray-700" />
                     </button>
+
+                    {/* Task priority */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setPriorityId(task?._id)}
+                        className="flex items-center space-x-1 p-2 rounded-lg hover:bg-gray-50 transition duration-200"
+                      >
+                        <span
+                          className={`text-sm font-medium ${
+                            task?.priority === "Low"
+                              ? "text-green-500"
+                              : task?.priority === "Medium"
+                              ? "text-yellow-500"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {task?.priority}
+                        </span>
+                        <ChevronDown
+                          className={`w-4 h-4 ${
+                            task?.priority === "Low"
+                              ? "text-green-500"
+                              : task?.priority === "Medium"
+                              ? "text-yellow-500"
+                              : "text-red-500"
+                          }`}
+                        />
+                      </button>
+                      {priorityId === task?.id && (
+                        <div className="absolute top-10 right-0 w-40 bg-white border border-gray-100 rounded-lg shadow-md mt-2 z-10">
+                          {["Low", "Medium", "High"].map((item, index) => (
+                            <button
+                              key={index}
+                              onClick={() =>
+                                handlePriorityChange(task.id, item)
+                              }
+                              className="block w-full p-2 text-sm font-medium hover:bg-gray-100 transition duration-200"
+                            >
+                              <span
+                                className={`${
+                                  item === "Low"
+                                    ? "text-green-500"
+                                    : item === "Medium"
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
+                                }`}
+                              >
+                                {item}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -335,15 +477,40 @@ const TodoPage = () => {
                   </label>
                   <input
                     type="text"
-                    value={newTask.title}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, title: e.target.value })
-                    }
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                     placeholder="Enter task title"
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>{" "}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Task Priority
+                  </label>
+                  <div className="w-full">
+                    <label
+                      htmlFor="priority"
+                      className="block mb-2 text-sm font-medium text-gray-700"
+                    >
+                      Choose Priority
+                    </label>
+                    <select
+                      id="priority"
+                      name="priority"
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={priority}
+                      onChange={(e) => {
+                        setPriority(e.target.value);
+                        console.log(e.target.value, "priority...");
+                      }}
+                    >
+                      <option value="">Select Priority</option>
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -352,10 +519,8 @@ const TodoPage = () => {
                     <div className="relative">
                       <input
                         type="time"
-                        value={newTask.startTime}
-                        onChange={(e) =>
-                          setNewTask({ ...newTask, startTime: e.target.value })
-                        }
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                       />
                       <Clock className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
@@ -369,17 +534,14 @@ const TodoPage = () => {
                     <div className="relative">
                       <input
                         type="time"
-                        value={newTask.endTime}
-                        onChange={(e) =>
-                          setNewTask({ ...newTask, endTime: e.target.value })
-                        }
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                       />
                       <Clock className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
                     </div>
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Set Date
@@ -387,30 +549,25 @@ const TodoPage = () => {
                   <div className="relative">
                     <input
                       type="date"
-                      value={newTask.date}
-                      onChange={(e) =>
-                        setNewTask({ ...newTask, date: e.target.value })
-                      }
+                      value={taskDate}
+                      onChange={(e) => setTaskDate(e.target.value)}
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                     />
                     <Calendar className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
-                    value={newTask.description}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, description: e.target.value })
-                    }
+                    name="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     placeholder="Add description"
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
                   />
                 </div>
-
                 <button
                   type="submit"
                   className="w-full bg-blue-500 text-white py-4 rounded-xl hover:bg-blue-600 transition-colors duration-200 font-medium text-lg"

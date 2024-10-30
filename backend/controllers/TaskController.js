@@ -1,24 +1,41 @@
 const Task = require("../models/Task");
 
 class TaskController {
+  static async getAllTasks(req, res) {
+    try {
+      const tasks = await Task.find().sort({ dateTime: 1 });
+      return res.status(200).json({
+        message: "Tasks retrieved successfully",
+        tasks,
+      });
+    } catch (error) {
+      console.error("Error in getAllTasks:", error);
+      res.status(500).json({
+        message: "Error retrieving tasks",
+        error: error.message,
+      });
+    }
+  }
   // Create Task
   static async createTask(req, res) {
     try {
       const { title, description, dateTime, priority } = req.body;
 
-      // Validate required fields
-      if (!title || !dateTime) {
+      if (!title || !dateTime?.startTime || !dateTime?.endTime) {
         return res.status(400).json({
-          message: "Title and dateTime are mandatory fields",
+          message: "Title, start time and end time are mandatory fields",
         });
       }
 
       const newTask = new Task({
         title,
         description,
-        dateTime: new Date(dateTime),
-        priority: priority || "Low",
-        status: "In Progress", // Default status
+        dateTime: {
+          startTime: dateTime.startTime,
+          endTime: dateTime.endTime,
+        },
+        priority: priority,
+        status: "In Progress",
       });
 
       await newTask.save();
@@ -94,6 +111,7 @@ class TaskController {
   static async searchTasks(req, res) {
     try {
       const { keyword } = req.query;
+      console.log(keyword, "keyword");
 
       if (!keyword) {
         return res.status(400).json({

@@ -2,10 +2,23 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInterceptor from "../../utils/axiosInterceptior";
 
 // Async thunk actions
+
+export const allTasksList = createAsyncThunk(
+  "task/all",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInterceptor.get("/all");
+      return response?.data?.tasks;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
 export const createTask = createAsyncThunk(
   "task/createTask",
   async (taskData, { rejectWithValue }) => {
     try {
+      console.log("taskData", taskData);
       const response = await axiosInterceptor.post("/create", taskData);
       return response.data;
     } catch (error) {
@@ -97,6 +110,18 @@ const taskSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    builder.addCase(allTasksList.pending, (state) => {
+      state.loading = true;
+    });
+    builder.addCase(allTasksList.fulfilled, (state, { payload }) => {
+      state.loading = false;
+      state.tasks = payload;
+      state.error = null;
+    });
+    builder.addCase(allTasksList.rejected, (state, { payload }) => {
+      state.loading = false;
+      state.error = payload;
+    });
     // Create Task
     builder
       .addCase(createTask.pending, (state) => {
@@ -104,7 +129,8 @@ const taskSlice = createSlice({
       })
       .addCase(createTask.fulfilled, (state, { payload }) => {
         state.loading = false;
-        state.tasks.push(payload);
+        // state.tasks.push(payload);
+        state.tasks = [payload, ...state.tasks];
         state.error = null;
       })
       .addCase(createTask.rejected, (state, { payload }) => {

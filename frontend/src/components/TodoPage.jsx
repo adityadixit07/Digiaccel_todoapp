@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Settings,
   Search,
@@ -40,24 +40,16 @@ const TodoPage = () => {
 
   const taskList = useSelector((state) => state?.task?.tasks);
 
-  const [allTasks, setAllTasks] = useState([]);
   useEffect(() => {
     dispatch(allTasksList());
   }, []);
 
   const dispatch = useDispatch();
-  // Filter tasks based on search query
-  useEffect(() => {
-    const filtered = tasks.filter((task) =>
-      task.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredTasks(filtered);
-  }, [searchQuery, tasks]);
+
   const [isLoading, setIsLoading] = useState(false);
 
   const handleTaskStatusChange = async (id, status) => {
     setIsLoading(true);
-    console.log(id, status, "idand stuad");
     try {
       await dispatch(
         updateTaskStatus({
@@ -76,9 +68,9 @@ const TodoPage = () => {
     }
   };
 
-  const handleTaskDelete = (id) => {
-    // setTasks(tasks.filter((task) => task.id !== id));
-    dispatch(deleteTask(id));
+  const handleTaskDelete = async (id) => {
+    await dispatch(deleteTask(id)).unwrap();
+    toast.success("Task deleted successfully");
   };
 
   const handleSubmit = async (e) => {

@@ -160,9 +160,21 @@ class TaskController {
         return res.status(404).json({ message: "Task not found" });
       }
 
+      const openTasks = weeklyTasks.filter(
+        (task) => task.status !== "Completed"
+      ).length;
+      const completedTasks = weeklyTasks.filter(
+        (task) => task.status === "Completed"
+      ).length;
+
       res.status(200).json({
         message: "Task status updated successfully",
         task: updatedTask,
+        weeklySummary: {
+          week: `${weekStart.toDateString()} - ${weekEnd.toDateString()}`,
+          openTasks,
+          completedTasks,
+        },
       });
     } catch (error) {
       console.error(error);

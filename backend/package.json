@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js",
-    "build-frontend": "cd ../frontend && npm run build",
-    "serve-backend": "nodemon index.js",
+    "start": "npm run build-frontend && node index.js",
+    "build-frontend": "cd frontend && npm run build",
+    "serve-backend": "node index.js",
     "dev": "npm run build-frontend && npm run serve-backend"
   },
   "keywords": [],

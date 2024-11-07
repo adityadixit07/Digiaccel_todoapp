@@ -1,13 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Plus,
-  X,
-  Clock,
-  Trash2,
-  Pencil,
-  Check,
-  ChevronDown,
-} from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Plus, Clock, Trash2, Pencil, Check, ChevronDown } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -52,68 +44,64 @@ const TodoPage = () => {
   useEffect(() => {
     dispatch(allTasksList());
   }, [dispatch]);
+  const handleTaskStatusChange = useCallback(
+    async (id, status) => {
+      setIsLoading(true);
+      try {
+        await dispatch(updateTaskStatus({ id, status })).unwrap();
+        toast.success("Task status updated successfully");
+      } catch (err) {
+        toast.error("Failed to update task status");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [dispatch]
+  );
 
-  const handleTaskStatusChange = async (id, status) => {
-    setIsLoading(true);
-    try {
-      await dispatch(
-        updateTaskStatus({
-          id,
-          status,
-        })
-      ).unwrap();
+  const handlePriorityChange = useCallback(
+    async (taskId, newPriority) => {
+      try {
+        await dispatch(
+          updateTaskPriority({ id: taskId, priority: newPriority })
+        ).unwrap();
+        setPriorityId(null);
+        toast.success("Priority updated successfully");
+      } catch (err) {
+        toast.error("Failed to update priority");
+      }
+    },
+    [dispatch]
+  );
 
-      // Optional: Show success notification
-      toast.success("Task status updated successfully");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Failed to update task status");
-    } finally {
+  const handleTaskDelete = useCallback(
+    async (id) => {
+      setIsLoading(true);
+      await dispatch(deleteTask(id)).unwrap();
       setIsLoading(false);
-    }
-  };
-  const handlePriorityChange = async (taskId, newPriority) => {
-    try {
-      await dispatch(
-        updateTaskPriority({ id: taskId, priority: newPriority })
-      ).unwrap();
-      setPriorityId(null);
-      toast.success("Priority updated successfully");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Failed to update priority");
-    }
-  };
+      toast.success("Task deleted successfully");
+    },
+    [dispatch]
+  );
 
-  const handleTaskDelete = async (id) => {
-    setIsLoading(true);
-    await dispatch(deleteTask(id)).unwrap();
-    setIsLoading(false);
-    toast.success("Task deleted successfully");
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const taskData = {
-      title,
-      description,
-      dateTime: {
-        startTime,
-        endTime,
-      },
-      priority,
-    };
-    await dispatch(createTask(taskData)).unwrap();
-    setIsModalOpen(false);
-    // Optional: Reset form
-    setFormData({
-      title: "",
-      description: "",
-      startTime: "",
-      endTime: "",
-      priority: priority,
-    });
-  };
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      const taskData = {
+        title,
+        description,
+        dateTime: { startTime, endTime },
+        priority,
+      };
+      await dispatch(createTask(taskData)).unwrap();
+      setIsModalOpen(false);
+      setTitle("");
+      setDescription("");
+      setStartTime("");
+      setEndTime("");
+    },
+    [dispatch, title, description, startTime, endTime, priority]
+  );
 
   const getWeeklySummary = async () => {
     try {

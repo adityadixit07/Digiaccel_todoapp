@@ -1,4 +1,7 @@
 {
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "build-frontend": "cd frontend && npm install && npm run build",
     "build-backend": "cd backend && npm install",

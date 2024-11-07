@@ -9,6 +9,7 @@ todoRoutes.put("/edit/:id", TaskController.editTask);
 todoRoutes.delete("/delete/:id", TaskController.deleteTask);
 todoRoutes.get("/search", TaskController.searchTasks);
 todoRoutes.put("/status/:id", TaskController.updateTaskStatus);
+todoRoutes.put("/task/priority/:id", TaskController.updateTaskPriority);
 todoRoutes.get("/weekly-summary", TaskController.getWeeklySummary);
 
 module.exports = todoRoutes;

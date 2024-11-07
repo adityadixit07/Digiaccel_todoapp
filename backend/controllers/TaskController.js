@@ -137,7 +137,7 @@ class TaskController {
     }
   }
 
-  // Update Task Status
+  // Update Task Status to 'In Progress' or 'Completed'
   static async updateTaskStatus(req, res) {
     try {
       const { id } = req.params;
@@ -181,16 +181,71 @@ class TaskController {
       res.status(500).json({ message: "Error updating task status", error });
     }
   }
+  static async updateTaskPriority(req, res) {
+    try {
+      const { id } = req.params;
+      const { priority } = req.body;
 
+      // Validate priority
+      if (!["Low", "Medium", "High"].includes(priority)) {
+        return res.status(400).json({
+          message: "Invalid priority. Must be 'Low', 'Medium' or 'High'",
+        });
+      }
+
+      const updatedTask = await Task.findByIdAndUpdate(
+        id,
+        { priority },
+        { new: true }
+      );
+
+      if (!updatedTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      res.status(200).json({
+        message: "Task priority updated successfully",
+        task: updatedTask,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Error updating task priority", error });
+    }
+  }
+
+  // Get Weekly Task Summary
   // Get Weekly Task Summary
   static async getWeeklySummary(req, res) {
     try {
       const pipeline = [
         {
           $addFields: {
+            weekStart: {
+              $toDate: {
+                $concat: [
+                  {
+                    $toString: {
+                      $substrCP: ["$dateTime.startTime", 0, 2],
+                    },
+                  },
+                  "/",
+                  {
+                    $toString: {
+                      $substrCP: ["$dateTime.startTime", 3, 2],
+                    },
+                  },
+                  "/",
+                  {
+                    $toString: {
+                      $year: new Date(),
+                    },
+                  },
+                ],
+              },
+            },
             week: {
               $dateTrunc: {
-                date: "$dateTime",
+                date: "$weekStart",
                 unit: "week",
                 startOfWeek: "Monday",
               },
@@ -211,7 +266,10 @@ class TaskController {
                 _id: "$_id",
                 title: "$title",
                 description: "$description",
-                dateTime: "$dateTime",
+                dateTime: {
+                  startTime: "$dateTime.startTime",
+                  endTime: "$dateTime.endTime",
+                },
                 priority: "$priority",
                 status: "$status",
               },

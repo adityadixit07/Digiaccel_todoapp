@@ -1,14 +1,14 @@
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Onboarding from "./components/Onboarding";
-import TodoPage from "./components/TodoPage";
+import TodoMain from "./pages/TodoMain";
 
 const App = () => {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Onboarding />} />
-        <Route path="/todo" element={<TodoPage />} />
+        <Route path="/todo" element={<TodoMain />} />
       </Routes>
     </Router>
   );

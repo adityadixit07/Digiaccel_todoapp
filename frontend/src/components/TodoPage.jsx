@@ -259,7 +259,7 @@ const TodoPage = () => {
                         task?.status || "In Progress"
                       )}
                     </span>
-                    <span className="ml-2 ">{task?.description}</span>
+                    {/* <span className="ml-2 ">{task?.description}</span>  */}
                   </div>
 
                   {/* Task actions */}

@@ -298,7 +298,7 @@ const TodoPage = () => {
                 key={task?._id}
                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition duration-200"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap">
                   <div className="flex items-center flex-1">
                     <input
                       type="checkbox"
@@ -317,11 +317,13 @@ const TodoPage = () => {
                     <span
                       className={`ml-3 font-medium ${
                         task?.status === "Completed"
-                          ? "line-through text-gray-400"
-                          : "text-gray-800"
+                          ? "line-through text-gray-400 text-ellipsis line-clamp-1"
+                          : "text-gray-800 text-ellipsis line-clamp-1"
                       }`}
                     >
-                      {task?.title}
+                      {task?.title?.length > 40
+                        ? task?.title?.slice(0, 40) + "..."
+                        : task?.title}
                     </span>
                     <span
                       className={`ml-3 px-3 py-1 text-sm rounded-full

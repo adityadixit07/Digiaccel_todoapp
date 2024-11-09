@@ -19,37 +19,34 @@ const TaskAddModal = ({
   handleSubmit,
   editingId,
 }) => {
-  // Get current date in YYYY-MM-DD format
   const currentDate = useMemo(() => {
     const now = new Date();
     return now.toISOString().split("T")[0];
   }, []);
 
-  // Get current time in HH:mm format
-  const getCurrentTime = () => {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    return `${hours}:${minutes}`;
-  };
+  // Get date from 6 days ago in YYYY-MM-DD format
+  const pastDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 6);
+    return date.toISOString().split("T")[0];
+  }, []);
 
-  // Get max end time (23:59) for the current day
-  const maxEndTime = "23:59";
-
-  // Initialize form with current date and time when opening
   useEffect(() => {
-    if (!editingId) {
-      const currentTime = getCurrentTime();
-      setTaskDate(currentDate);
-      setStartTime(currentTime);
-      setEndTime(currentTime); // Default to current time, user can adjust up to 23:59
+    if (editingId) {
+      console.log("Editing Task ID:", editingId);
+      // Assume that the parent component has already set the state
+      // If you want to reset fields when switching tasks, you can handle it here
+    } else {
+      // Reset fields if not editing
       setTitle("");
       setPriority("");
+      setStartTime("");
+      setEndTime("");
+      setTaskDate("");
       setDescription("");
     }
   }, [
     editingId,
-    currentDate,
     setTitle,
     setPriority,
     setStartTime,
@@ -57,61 +54,6 @@ const TaskAddModal = ({
     setTaskDate,
     setDescription,
   ]);
-
-  // Validate time selections
-  const handleStartTimeChange = (e) => {
-    const newStartTime = e.target.value;
-    const currentTime = getCurrentTime();
-
-    // If selected date is current date, start time cannot be earlier than current time
-    if (taskDate === currentDate && newStartTime < currentTime) {
-      alert("Start time cannot be earlier than current time for today's tasks");
-      setStartTime(currentTime);
-      return;
-    }
-
-    setStartTime(newStartTime);
-
-    // If end time is earlier than new start time, update end time
-    if (endTime < newStartTime) {
-      setEndTime(newStartTime);
-    }
-  };
-
-  const handleEndTimeChange = (e) => {
-    const newEndTime = e.target.value;
-
-    // End time must be after start time
-    if (newEndTime < startTime) {
-      alert("End time must be after start time");
-      return;
-    }
-
-    setEndTime(newEndTime);
-  };
-
-  // Custom form submit handler
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    // Additional validation before submitting
-    if (taskDate === currentDate) {
-      const currentTime = getCurrentTime();
-      if (startTime < currentTime) {
-        alert(
-          "Start time cannot be earlier than current time for today's tasks"
-        );
-        return;
-      }
-    }
-
-    if (endTime < startTime) {
-      alert("End time must be after start time");
-      return;
-    }
-
-    handleSubmit(e);
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
@@ -140,7 +82,7 @@ const TaskAddModal = ({
             </button>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Task Title
@@ -151,7 +93,6 @@ const TaskAddModal = ({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter task title"
                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               />
             </div>
 
@@ -165,28 +106,12 @@ const TaskAddModal = ({
                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                required
               >
                 <option value="">Select Priority</option>
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Set Date
-              </label>
-              <input
-                type="date"
-                value={taskDate}
-                onChange={(e) => setTaskDate(e.target.value)}
-                min={currentDate}
-                max={currentDate}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -197,11 +122,9 @@ const TaskAddModal = ({
                 <input
                   type="time"
                   value={startTime}
-                  onChange={handleStartTimeChange}
-                  min={taskDate === currentDate ? getCurrentTime() : "00:00"}
-                  max={maxEndTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  min={new Date().toLocaleTimeString().split(" ")[0]}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
                 />
               </div>
 
@@ -212,13 +135,26 @@ const TaskAddModal = ({
                 <input
                   type="time"
                   value={endTime}
-                  onChange={handleEndTimeChange}
+                  onChange={(e) => setEndTime(e.target.value)}
                   min={startTime}
-                  max={maxEndTime}
+                  max="23:59"
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Set Date
+              </label>
+              <input
+                type="date"
+                value={taskDate}
+                onChange={(e) => setTaskDate(e.target.value)}
+                min={pastDate}
+                max={currentDate}
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             <div>
@@ -230,7 +166,6 @@ const TaskAddModal = ({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add description"
                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               />
             </div>
 

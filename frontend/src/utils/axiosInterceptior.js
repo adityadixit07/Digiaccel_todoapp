@@ -1,6 +1,6 @@
 import axios from "axios";
 const axiosInterceptor = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: "https://digiaccel-todoapp-backend.onrender.com/api",
   // baseURL: "/api",
 });
 

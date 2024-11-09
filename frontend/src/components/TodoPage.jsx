@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Plus, Clock, Trash2, Pencil, Check, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Clock,
+  Trash2,
+  Pencil,
+  Check,
+  ChevronDown,
+  X,
+} from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -8,18 +16,19 @@ import {
   deleteTask,
   updateTaskPriority,
   updateTaskStatus,
+  updateTask,
 } from "../store/slices/taskSlice";
 import { toast } from "react-toastify";
 import axios from "axios";
 import Nav from "./Nav";
 import TaskAddModal from "../utils/TaskAddModal";
 import SearchInterface from "./SearchInterface";
+import axiosInterceptor from "../utils/axiosInterceptior";
 
 const TodoPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  // const [filteredTasks, setFilteredTasks] = useState([]);
   const [priorityId, setPriorityId] = useState(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -29,12 +38,18 @@ const TodoPage = () => {
   const [priority, setPriority] = useState("Low");
   const [completedTasks, setCompletedTasks] = useState("0");
   const [openTasks, setOpenTasks] = useState("0");
-  const [isLoading, setIsLoading] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [loadingStates, setLoadingStates] = useState({
+    status: {},
+    delete: {},
+    priority: {},
+    edit: {},
+  });
 
   const taskList = useSelector((state) => state?.task?.tasks);
   const tasks = useSelector((state) => state.task.tasks);
-
   const dispatch = useDispatch();
+
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) =>
       task?.title?.toLowerCase()?.includes(searchQuery?.toLowerCase())
@@ -44,16 +59,28 @@ const TodoPage = () => {
   useEffect(() => {
     dispatch(allTasksList());
   }, [dispatch]);
+
+  const setLoadingState = (type, id, isLoading) => {
+    setLoadingStates((prev) => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [id]: isLoading,
+      },
+    }));
+  };
+
   const handleTaskStatusChange = useCallback(
     async (id, status) => {
-      setIsLoading(true);
+      setLoadingState("status", id, true);
       try {
         await dispatch(updateTaskStatus({ id, status })).unwrap();
         toast.success("Task status updated successfully");
+        dispatch(allTasksList());
       } catch (err) {
         toast.error("Failed to update task status");
       } finally {
-        setIsLoading(false);
+        setLoadingState("status", id, false);
       }
     },
     [dispatch]
@@ -61,14 +88,18 @@ const TodoPage = () => {
 
   const handlePriorityChange = useCallback(
     async (taskId, newPriority) => {
+      setLoadingState("priority", taskId, true);
       try {
         await dispatch(
           updateTaskPriority({ id: taskId, priority: newPriority })
         ).unwrap();
         setPriorityId(null);
         toast.success("Priority updated successfully");
+        dispatch(allTasksList());
       } catch (err) {
         toast.error("Failed to update priority");
+      } finally {
+        setLoadingState("priority", taskId, false);
       }
     },
     [dispatch]
@@ -76,13 +107,29 @@ const TodoPage = () => {
 
   const handleTaskDelete = useCallback(
     async (id) => {
-      setIsLoading(true);
-      await dispatch(deleteTask(id)).unwrap();
-      setIsLoading(false);
-      toast.success("Task deleted successfully");
+      setLoadingState("delete", id, true);
+      try {
+        await dispatch(deleteTask(id)).unwrap();
+        toast.success("Task deleted successfully");
+        dispatch(allTasksList());
+      } catch (err) {
+        toast.error("Failed to delete task");
+      } finally {
+        setLoadingState("delete", id, false);
+      }
     },
     [dispatch]
   );
+
+  const startEditing = (task) => {
+    setEditingTaskId(task._id);
+    setTitle(task.title);
+    setDescription(task.description);
+    setStartTime(task.dateTime?.startTime || "");
+    setEndTime(task.dateTime?.endTime || "");
+    setPriority(task.priority);
+    setIsModalOpen(true);
+  };
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -93,35 +140,89 @@ const TodoPage = () => {
         dateTime: { startTime, endTime },
         priority,
       };
-      await dispatch(createTask(taskData)).unwrap();
-      setIsModalOpen(false);
-      setTitle("");
-      setDescription("");
-      setStartTime("");
-      setEndTime("");
+
+      try {
+        if (editingTaskId) {
+          setLoadingState("edit", editingTaskId, true);
+          await dispatch(updateTask({ id: editingTaskId, taskData })).unwrap();
+          toast.success("Task updated successfully");
+          setIsModalOpen(false);
+          setEditingTaskId(null);
+          dispatch(allTasksList());
+          resetForm();
+        } else {
+          await dispatch(createTask(taskData)).unwrap();
+          toast.success("Task created successfully");
+          dispatch(allTasksList());
+        }
+        setIsModalOpen(false);
+        resetForm();
+      } catch (err) {
+        console.error(err);
+        toast.error(
+          editingTaskId
+            ? "Failed to update task"
+            : err?.message || "Failed to create task"
+        );
+      } finally {
+        if (editingTaskId) {
+          setLoadingState("edit", editingTaskId, false);
+        }
+      }
     },
-    [dispatch, title, description, startTime, endTime, priority]
+    [dispatch, title, description, startTime, endTime, priority, editingTaskId]
   );
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setStartTime("");
+    setEndTime("");
+    setPriority("Low");
+    setEditingTaskId(null);
+  };
 
   const getWeeklySummary = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/api/weekly-summary");
-
+      const res = await axiosInterceptor.get("/weekly-summary");
       setCompletedTasks(res?.data?.weeklySummary[0]?.completedTasks);
       setOpenTasks(res?.data?.weeklySummary[0]?.openTasks);
     } catch (error) {
       console.error(error);
     }
   };
+
   useEffect(() => {
     getWeeklySummary();
   }, [taskList]);
+
+  const renderLoadingSpinner = () => (
+    <svg
+      className="animate-spin h-4 w-4"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      ></path>
+    </svg>
+  );
 
   return (
     <div className="relative h-screen bg-gray-50">
       <Nav setIsSearchOpen={setIsSearchOpen} />
 
-      {/* Search Interface */}
       {isSearchOpen && (
         <SearchInterface
           setIsSearchOpen={setIsSearchOpen}
@@ -133,6 +234,7 @@ const TodoPage = () => {
       )}
 
       <div className="pt-16 px-4 pb-24 h-full overflow-y-auto">
+        {/* 7 days  */}
         <div className="flex justify-between mb-6 overflow-x-auto py-2">
           {[...Array(7)].map((_, i) => (
             <div
@@ -153,7 +255,7 @@ const TodoPage = () => {
             </div>
           ))}
         </div>
-
+        {/* pending and completed tasks */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="p-4 rounded-xl shadow-sm border border-gray-100 bg-blue-100">
             <div className="flex items-center justify-center w-10 h-10 bg-blue-200 rounded-full mb-2">
@@ -176,7 +278,6 @@ const TodoPage = () => {
         </div>
 
         <div className="mb-6">
-          {/* Header section */}
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-semibold text-lg">Today's Tasks</h2>
             <button className="text-blue-500 text-sm font-medium">
@@ -184,34 +285,25 @@ const TodoPage = () => {
             </button>
           </div>
 
-          {/* Tasks list */}
           <div className="space-y-3">
+            {taskList?.length === 0 && (
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex items-center justify-center">
+                  <span className="text-gray-500">No tasks found</span>
+                </div>
+              </div>
+            )}
             {taskList?.map((task) => (
               <div
                 key={task?._id}
                 className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition duration-200"
               >
                 <div className="flex items-center justify-between">
-                  {/* Task title and status */}
                   <div className="flex items-center flex-1">
                     <input
                       type="checkbox"
-                      checked={task?.status === "complete"}
-                      onChange={() => handleTaskStatusChange(task?._id)}
-                      className="form-checkbox h-5 w-5 text-blue-500 rounded-lg cursor-pointer"
-                    />
-                    <span
-                      className={`ml-3 font-medium ${
-                        task?.status === "complete"
-                          ? "line-through text-gray-400"
-                          : "text-gray-800"
-                      }`}
-                    >
-                      {task?.title}
-                    </span>
-                    <span
-                      onClick={() =>
-                        !isLoading &&
+                      checked={task?.status === "Completed"}
+                      onChange={() =>
                         handleTaskStatusChange(
                           task?._id,
                           task?.status === "Completed"
@@ -219,102 +311,109 @@ const TodoPage = () => {
                             : "Completed"
                         )
                       }
-                      className={`ml-3 px-3 py-1 text-sm rounded-full
-      ${
-        isLoading
-          ? "opacity-50 cursor-not-allowed"
-          : "cursor-pointer hover:opacity-80"
-      }
-      transition-opacity ${
-        task?.status === "Completed"
-          ? "bg-green-100 text-green-600"
-          : "bg-yellow-100 text-yellow-600"
-      }`}
+                      disabled={loadingStates.status[task._id]}
+                      className="form-checkbox h-5 w-5 text-blue-500 rounded-lg cursor-pointer"
+                    />
+                    <span
+                      className={`ml-3 font-medium ${
+                        task?.status === "Completed"
+                          ? "line-through text-gray-400"
+                          : "text-gray-800"
+                      }`}
                     >
-                      {isLoading ? (
-                        <span className="flex items-center">
-                          <svg
-                            className="animate-spin -ml-1 mr-2 h-4 w-4"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Updating...
+                      {task?.title}
+                    </span>
+                    <span
+                      className={`ml-3 px-3 py-1 text-sm rounded-full
+                        ${
+                          loadingStates.status[task._id]
+                            ? "opacity-50 cursor-not-allowed"
+                            : "cursor-pointer hover:opacity-80"
+                        }
+                        transition-opacity ${
+                          task?.status === "Completed"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-yellow-100 text-yellow-600"
+                        }`}
+                    >
+                      {loadingStates.status[task._id] ? (
+                        <span className="flex items-center space-x-1">
+                          {renderLoadingSpinner()}
+                          <span>Updating...</span>
                         </span>
                       ) : (
                         task?.status || "In Progress"
                       )}
                     </span>
-                    {/* <span className="ml-2 ">{task?.description}</span>  */}
                   </div>
 
-                  {/* Task actions */}
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={() => handleTaskDelete(task?._id)}
-                      className="p-2 rounded-lg hover:bg-red-50 transition duration-200"
+                      disabled={loadingStates.delete[task._id]}
+                      className="p-2 rounded-lg hover:bg-red-50 transition duration-200 disabled:opacity-50"
                     >
-                      {isLoading ? (
-                        "Delete the task"
+                      {loadingStates.delete[task._id] ? (
+                        renderLoadingSpinner()
                       ) : (
                         <Trash2 className="h-5 w-5 text-red-500" />
                       )}
                     </button>
-                    <button className="p-2 rounded-lg hover:bg-gray-50 transition duration-200">
-                      <Pencil className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+
+                    <button
+                      onClick={() => startEditing(task)}
+                      className="p-2 rounded-lg hover:bg-gray-50 transition duration-200"
+                      disabled={loadingStates.edit[task._id]}
+                    >
+                      {loadingStates.edit[task._id] ? (
+                        renderLoadingSpinner()
+                      ) : (
+                        <Pencil className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                      )}
                     </button>
 
-                    {/* Task priority */}
                     <div className="relative priority-dropdown">
                       <button
-                        onClick={() => setPriorityId(task?._id)} // Changed from task?.id to task?._id
+                        onClick={() => setPriorityId(task?._id)}
+                        disabled={loadingStates.priority[task._id]}
                         className="flex items-center space-x-1 p-2 rounded-lg hover:bg-gray-50 transition duration-200"
                       >
-                        <span
-                          className={`text-sm font-medium ${
-                            task?.priority === "Low"
-                              ? "text-green-500"
-                              : task?.priority === "Medium"
-                              ? "text-yellow-500"
-                              : "text-red-500"
-                          }`}
-                        >
-                          {task?.priority}
-                        </span>
-                        <ChevronDown
-                          className={`w-4 h-4 ${
-                            task?.priority === "Low"
-                              ? "text-green-500"
-                              : task?.priority === "Medium"
-                              ? "text-yellow-500"
-                              : "text-red-500"
-                          }`}
-                        />
+                        {loadingStates.priority[task._id] ? (
+                          renderLoadingSpinner()
+                        ) : (
+                          <>
+                            <span
+                              className={`text-sm font-medium ${
+                                task?.priority === "Low"
+                                  ? "text-green-500"
+                                  : task?.priority === "Medium"
+                                  ? "text-yellow-500"
+                                  : "text-red-500"
+                              }`}
+                            >
+                              {task?.priority}
+                            </span>
+                            <ChevronDown
+                              className={`w-4 h-4 ${
+                                task?.priority === "Low"
+                                  ? "text-green-500"
+                                  : task?.priority === "Medium"
+                                  ? "text-yellow-500"
+                                  : "text-red-500"
+                              }`}
+                            />
+                          </>
+                        )}
                       </button>
 
-                      {/* Priority Dropdown Menu */}
-                      {priorityId === task?._id && ( // Changed from task?.id to task?._id
+                      {priorityId === task?._id && (
                         <div className="absolute top-10 right-0 w-40 bg-white border border-gray-100 rounded-lg shadow-md mt-2 z-10">
                           {["Low", "Medium", "High"].map((item) => (
                             <button
                               key={item}
                               onClick={() =>
                                 handlePriorityChange(task?._id, item)
-                              } // Changed from task.id to task._id
+                              }
                               className="block w-full p-2 text-sm font-medium hover:bg-gray-100 transition duration-200"
                             >
                               <span
@@ -341,16 +440,20 @@ const TodoPage = () => {
         </div>
       </div>
 
+      {/* Add/Edit button */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center z-10">
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            resetForm();
+            setIsModalOpen(true);
+          }}
           className="bg-blue-500 text-white rounded-full p-4 shadow-lg hover:bg-blue-600 transition-colors duration-200"
         >
           <Plus className="h-6 w-6" />
         </button>
       </div>
 
-      {/*  Modal */}
+      {/* Modal */}
       {isModalOpen && (
         <TaskAddModal
           isModalOpen={isModalOpen}
@@ -368,6 +471,7 @@ const TodoPage = () => {
           description={description}
           setDescription={setDescription}
           handleSubmit={handleSubmit}
+          editingId={editingTaskId}
         />
       )}
     </div>

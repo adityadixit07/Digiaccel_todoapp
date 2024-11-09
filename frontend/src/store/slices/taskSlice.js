@@ -90,6 +90,22 @@ export const updateTaskPriority = createAsyncThunk(
   }
 );
 
+export const updateTask = createAsyncThunk(
+  "task/updateTask",
+  async ({ id, taskData }, { rejectWithValue }) => {
+    console.log("taskData of slice............", taskData);
+    try {
+      const response = await axiosInterceptor.put(
+        `/updateTask/${id}`,
+        taskData
+      );
+      return response?.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 export const getWeeklySummary = createAsyncThunk(
   "task/getWeeklySummary",
   async (_, { rejectWithValue }) => {
@@ -223,6 +239,22 @@ const taskSlice = createSlice({
         state.error = null;
       })
       .addCase(updateTaskPriority.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+      })
+
+      // Update Task
+      .addCase(updateTask.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateTask.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.tasks = state.tasks.map((task) =>
+          task.id === payload.id ? payload : task
+        );
+        state.error = null;
+      })
+      .addCase(updateTask.rejected, (state, { payload }) => {
         state.loading = false;
         state.error = payload;
       })

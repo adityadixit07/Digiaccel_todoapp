@@ -78,13 +78,13 @@ const SearchInterface = ({ setIsSearchOpen, searchQuery, setSearchQuery }) => {
                     </p>
                     <p
                       className={`text-sm ${
-                        task?.status === "complete"
+                        task?.status === "Completed"
                           ? "text-green-500"
                           : "text-yellow-500"
                       }`}
                     >
                       Status:{" "}
-                      {task?.status === "complete"
+                      {task?.status === "Completed"
                         ? "Completed"
                         : "In Progress"}
                     </p>

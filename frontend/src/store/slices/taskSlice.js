@@ -42,6 +42,7 @@ export const editTask = createAsyncThunk(
 export const deleteTask = createAsyncThunk(
   "task/deleteTask",
   async (id, { rejectWithValue }) => {
+    console.log("id", id);
     try {
       await axiosInterceptor.delete(`/delete/${id}`);
       return id;

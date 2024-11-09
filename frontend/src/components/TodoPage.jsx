@@ -228,8 +228,8 @@ const TodoPage = () => {
           setIsSearchOpen={setIsSearchOpen}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          filteredTasks={filteredTasks}
-          handleTaskStatusChange={handleTaskStatusChange}
+          // filteredTasks={filteredTasks}
+          // handleTaskStatusChange={handleTaskStatusChange}
         />
       )}
 

@@ -89,12 +89,7 @@ const SearchInterface = ({ setIsSearchOpen, searchQuery, setSearchQuery }) => {
                         : "In Progress"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleDeleteTask(task?._id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                 
                 </div>
               ))}
             </div>
